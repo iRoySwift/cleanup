@@ -2,7 +2,7 @@ use colored::Colorize;
 use dialoguer::{MultiSelect, theme::ColorfulTheme};
 use std::{
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::Command,
 };
 
 use crate::commands::Utils;
