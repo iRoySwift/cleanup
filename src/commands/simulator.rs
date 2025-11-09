@@ -56,34 +56,46 @@ pub struct Simulator;
 impl Simulator {
     /// 获取所有 Simulator 设备
     fn get_simulator_devices() -> HashMap<String, Vec<DeviceEntry>> {
-        let output = Command::new("xcrun")
-            .arg("simctl")
-            .arg("list")
-            .arg("devices")
-            .arg("-j")
+        let output = match Command::new("xcrun")
+            .args(["simctl", "list", "devices", "-j"])
             .output()
-            .expect("Failed to execute xcrun simctl list devices -j");
+        {
+            Ok(output) => output,
+            Err(err) => {
+                eprintln!("Failed to execute xcrun simctl list devices -j: {}", err);
+                return HashMap::new();
+            }
+        };
 
-        let parsed: DeviceList =
-            serde_json::from_slice(&output.stdout).expect("Failed to parse devices JSON");
-
-        parsed.devices
+        match serde_json::from_slice::<DeviceList>(&output.stdout) {
+            Ok(parsed) => parsed.devices,
+            Err(err) => {
+                eprintln!("Failed to parse devices JSON: {}", err);
+                HashMap::new()
+            }
+        }
     }
 
     /// 获取所有 Simulator 运行时和设备信息
     fn get_simulator_runtimes() -> Vec<RuntimeEntry> {
-        let output = Command::new("xcrun")
-            .arg("simctl")
-            .arg("list")
-            .arg("runtimes")
-            .arg("-j")
+        let output = match Command::new("xcrun")
+            .args(["simctl", "list", "runtimes", "-j"])
             .output()
-            .expect("Failed to execute xcrun simctl list runtimes -j");
+        {
+            Ok(output) => output,
+            Err(err) => {
+                eprintln!("Failed to execute xcrun simctl list runtimes -j: {}", err);
+                return Vec::new();
+            }
+        };
 
-        let parsed: RuntimeList =
-            serde_json::from_slice(&output.stdout).expect("Failed to parse runtimes JSON");
-
-        parsed.runtimes
+        match serde_json::from_slice::<RuntimeList>(&output.stdout) {
+            Ok(parsed) => parsed.runtimes,
+            Err(err) => {
+                eprintln!("Failed to parse runtimes JSON: {}", err);
+                Vec::new()
+            }
+        }
     }
 
     pub fn get_simulators() -> Vec<SimulatorInfo> {
@@ -183,7 +195,7 @@ impl Simulator {
 
         println!("{}", "🧹 Cleaning Simulators:".bold().cyan());
 
-        let selections = MultiSelect::with_theme(&ColorfulTheme::default())
+        let selections = match MultiSelect::with_theme(&ColorfulTheme::default())
             .items(
                 list.iter()
                     .map(|simulator| {
@@ -218,7 +230,13 @@ impl Simulator {
                     .collect::<Vec<String>>(),
             )
             .interact()
-            .unwrap();
+        {
+            Ok(selection) => selection,
+            Err(err) => {
+                eprintln!("Failed to read selection: {}", err);
+                return;
+            }
+        };
 
         if selections.is_empty() {
             println!("No simulator selected.");
@@ -239,10 +257,18 @@ impl Simulator {
 
             println!("Removing {}...", select.name);
             match output {
-                Ok(output) if output.status.success() => {
-                    println!("✓ Removed {}", select.name.green());
+                Ok(output) => {
+                    if output.status.success() {
+                        println!("✓ Removed {}", select.name.green());
+                    } else {
+                        println!(
+                            "✗ Failed to remove {}: {}",
+                            select.name.red(),
+                            String::from_utf8_lossy(&output.stderr)
+                        );
+                    }
                 }
-                _ => println!("✗ Failed to remove {}", select.name.red()),
+                Err(err) => println!("✗ Failed to remove {}: {}", select.name.red(), err),
             }
         }
     }

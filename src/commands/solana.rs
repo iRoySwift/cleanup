@@ -33,7 +33,13 @@ impl Solana {
 
     /// 获取所有 Solana 版本
     pub fn get_solana_versions() -> Vec<SolanaInfo> {
-        let home = std::env::home_dir().unwrap();
+        let home = match std::env::var("HOME") {
+            Ok(path) => PathBuf::from(path),
+            Err(err) => {
+                eprintln!("HOME environment variable is not set: {}", err);
+                return Vec::new();
+            }
+        };
         let solana_dir = home.join(".local/share/solana/install/releases");
 
         if !solana_dir.exists() {
@@ -42,22 +48,43 @@ impl Solana {
         let mut versions = Vec::new();
         let active_version = Self::get_active_solana_version();
 
-        for entry in std::fs::read_dir(&solana_dir).unwrap() {
-            let entry = entry.unwrap();
-            let path = entry.path();
-            if path.exists() {
-                let name = path.file_name().unwrap().to_string_lossy().to_string();
-                let size = Utils::calculate_dir_size(&path);
-                let is_active = active_version.as_ref().is_some_and(|v| name.contains(v));
-                let version = Self::get_solana_version_info(&path);
-                versions.push(SolanaInfo {
-                    name,
-                    path: path.to_string_lossy().to_string(),
-                    size,
-                    is_active,
-                    version,
-                });
+        let entries = match std::fs::read_dir(&solana_dir) {
+            Ok(entries) => entries,
+            Err(err) => {
+                eprintln!("Failed to read Solana releases directory: {}", err);
+                return Vec::new();
             }
+        };
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(err) => {
+                    eprintln!("Failed to read Solana entry: {}", err);
+                    continue;
+                }
+            };
+            let path = entry.path();
+            if !path.exists() {
+                continue;
+            }
+            let Some(name) = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_string())
+            else {
+                continue;
+            };
+            let size = Utils::calculate_dir_size(&path);
+            let is_active = active_version.as_ref().is_some_and(|v| name.contains(v));
+            let version = Self::get_solana_version_info(&path);
+            versions.push(SolanaInfo {
+                name,
+                path: path.to_string_lossy().to_string(),
+                size,
+                is_active,
+                version,
+            });
         }
 
         versions
@@ -65,17 +92,25 @@ impl Solana {
 
     /// 获取当前激活的 Solana 版本
     fn get_active_solana_version() -> Option<String> {
-        let home = std::env::var("HOME").unwrap();
+        let home = match std::env::var("HOME") {
+            Ok(path) => path,
+            Err(err) => {
+                eprintln!("HOME environment variable is not set: {}", err);
+                return None;
+            }
+        };
         let active_link = Path::new(&home).join(".local/share/solana/install/active_release");
 
-        if let Ok(target) = fs::read_link(&active_link) {
-            target
+        match fs::read_link(&active_link) {
+            Ok(target) => target
                 .to_string_lossy()
                 .split('/')
                 .find(|s| s.starts_with("stable-"))
-                .map(|s| s.to_string())
-        } else {
-            None
+                .map(|s| s.to_string()),
+            Err(err) => {
+                eprintln!("Failed to read active Solana link: {}", err);
+                None
+            }
         }
     }
 
@@ -128,7 +163,7 @@ impl Solana {
 
         println!("{}", "🧹 Cleaning Solana Versions:".bold().cyan());
 
-        let selections = MultiSelect::with_theme(&ColorfulTheme::default())
+        let selections = match MultiSelect::with_theme(&ColorfulTheme::default())
             .with_prompt("Select versions to remove:")
             .items(
                 &inactive_versions
@@ -137,7 +172,13 @@ impl Solana {
                     .collect::<Vec<String>>(),
             )
             .interact()
-            .unwrap();
+        {
+            Ok(selection) => selection,
+            Err(err) => {
+                eprintln!("Failed to read selection: {}", err);
+                return;
+            }
+        };
 
         if selections.is_empty() {
             println!("No Solana versions selected.");
@@ -147,10 +188,9 @@ impl Solana {
         for &index in &selections {
             let select = &inactive_versions[index];
             println!("Removing {}...", select.name);
-            if fs::remove_dir_all(&select.path).is_ok() {
-                println!("{} removed.", select.name.green());
-            } else {
-                println!("Failed to remove {}.", select.name.red());
+            match fs::remove_dir_all(&select.path) {
+                Ok(_) => println!("{} removed.", select.name.green()),
+                Err(err) => println!("Failed to remove {}: {}.", select.name.red(), err),
             }
         }
     }

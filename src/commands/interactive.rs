@@ -7,11 +7,21 @@ pub struct Interactive;
 /// 清理 Rust、Solana 和 Simulator 的交互式向导
 #[allow(dead_code)]
 impl Interactive {
-    fn cleanup_rust() {
-        let rust_cleanup = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Clean up Rust toolchains?")
+    fn prompt(prompt: &str) -> bool {
+        match Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt(prompt)
             .interact()
-            .unwrap();
+        {
+            Ok(choice) => choice,
+            Err(err) => {
+                eprintln!("Failed to read input: {}", err);
+                false
+            }
+        }
+    }
+
+    fn cleanup_rust() {
+        let rust_cleanup = Self::prompt("Clean up Rust toolchains?");
 
         if rust_cleanup {
             Rust::clean_rust_versions();
@@ -19,10 +29,7 @@ impl Interactive {
         }
     }
     fn cleanup_solana() {
-        let solana_cleanup = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Clean up Solana installations?")
-            .interact()
-            .unwrap();
+        let solana_cleanup = Self::prompt("Clean up Solana installations?");
 
         if solana_cleanup {
             Solana::clean_solana_versions();
@@ -30,10 +37,7 @@ impl Interactive {
         }
     }
     fn cleanup_simulator() {
-        let simulator_cleanup = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Clean up Simulator installations?")
-            .interact()
-            .unwrap();
+        let simulator_cleanup = Self::prompt("Clean up Simulator installations?");
 
         if simulator_cleanup {
             Simulator::clean_simulators();
