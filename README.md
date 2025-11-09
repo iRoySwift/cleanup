@@ -85,6 +85,16 @@ cargo test
 
 # 只运行 utils 模块中的 format_size_scales_units 测试并输出原始日志
 cargo test -p cleanup format_size_scales_units -- --nocapture
+
+# 只运行 calculate_dir_size_sums_nested_files 测试
+cargo test -p cleanup calculate_dir_size_sums_nested_files
+
+# 验证 command_exists 检测脚本
+cargo test -p cleanup command_exists_detects_binaries
+
+# 手工执行 CI 中的三个步骤：格式检查、Clippy、测试
+cargo fmt -- --check
+cargo clippy -- -D warnings
 ```
 
 功能验证建议：

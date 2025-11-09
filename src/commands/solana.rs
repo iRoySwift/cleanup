@@ -20,7 +20,7 @@ pub struct SolanaInfo {
 
 impl Solana {
     /// 获取单个 Solana 版本的信息
-    fn get_solana_version_info(version_path: &PathBuf) -> Option<String> {
+    fn get_solana_version_info(version_path: &Path) -> Option<String> {
         let solana_bin = version_path.join("solana-release/bin/solana");
         if !solana_bin.exists() {
             return None;
@@ -166,7 +166,7 @@ impl Solana {
         let selections = match MultiSelect::with_theme(&ColorfulTheme::default())
             .with_prompt("Select versions to remove:")
             .items(
-                &inactive_versions
+                inactive_versions
                     .iter()
                     .map(|v| format!("{} ({})", v.name, Utils::format_size(v.size)))
                     .collect::<Vec<String>>(),

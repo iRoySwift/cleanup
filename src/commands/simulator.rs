@@ -174,12 +174,9 @@ impl Simulator {
             let size_raw = Utils::format_size(simulator.size);
             let size_colored = format!("{:>10}", size_raw).yellow();
             if simulator.simulator_type == "runtime" {
-                println!("{} {:<52} {:>10} {}", "", name_block, size_colored, status);
+                println!(" {:<52} {:>10} {}", name_block, size_colored, status);
             } else {
-                println!(
-                    "{} {:<50} {:>10} {}",
-                    " -", name_block, size_colored, status
-                );
+                println!(" - {:<50} {:>10} {}", name_block, size_colored, status);
             };
         }
         println!();

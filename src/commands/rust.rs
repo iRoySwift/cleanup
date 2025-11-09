@@ -116,22 +116,20 @@ impl Rust {
         let mut total_size = 0;
         for version in &versions {
             total_size += version.size;
-            let status = version
-                .is_active
-                .then(|| "✓ active".green())
-                .unwrap_or("  inactive".red());
+            let status = if version.is_active {
+                "✓ active".green()
+            } else {
+                "  inactive".red()
+            };
             let version_info = version
                 .version
                 .as_ref()
                 .map(|v| format!(" ({})", v))
                 .unwrap_or_default();
 
-            println!(
-                "{} {} {}",
-                format!("{}{}", version.name, version_info),
-                Utils::format_size(version.size).yellow(),
-                status
-            );
+            let name = format!("{}{}", version.name, version_info);
+            let size_color = Utils::format_size(version.size).yellow();
+            println!("{} {} {}", name, size_color, status);
         }
 
         println!();
