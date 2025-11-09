@@ -7,13 +7,17 @@ pub struct Utils;
 impl Utils {
     /// 计算文件大小的辅助函数
     pub fn calculate_dir_size(dir: &Path) -> u64 {
-        WalkDir::new(dir)
-            .into_iter()
-            .filter_map(|entry| entry.ok())
-            .filter_map(|entry| entry.metadata().ok())
-            .filter(|metadata| metadata.is_file())
-            .map(|metadata| metadata.len())
-            .sum()
+        if dir.exists() {
+            WalkDir::new(dir)
+                .into_iter()
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| entry.metadata().ok())
+                .filter(|metadata| metadata.is_file())
+                .map(|metadata| metadata.len())
+                .sum()
+        } else {
+            0
+        }
     }
 
     /// kb, mb, gb 格式化大小的辅助函数

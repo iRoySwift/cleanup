@@ -10,10 +10,10 @@ use crate::commands::Utils;
 pub struct Solana;
 
 #[derive(Debug)]
-struct SolanaVersion {
+pub struct SolanaInfo {
     name: String,
-    path: PathBuf,
-    size: u64,
+    path: String,
+    pub size: u64,
     is_active: bool,
     version: Option<String>,
 }
@@ -32,7 +32,7 @@ impl Solana {
     }
 
     /// 获取所有 Solana 版本
-    fn get_solana_versions() -> Vec<SolanaVersion> {
+    pub fn get_solana_versions() -> Vec<SolanaInfo> {
         let home = std::env::home_dir().unwrap();
         let solana_dir = home.join(".local/share/solana/install/releases");
 
@@ -50,9 +50,9 @@ impl Solana {
                 let size = Utils::calculate_dir_size(&path);
                 let is_active = active_version.as_ref().is_some_and(|v| name.contains(v));
                 let version = Self::get_solana_version_info(&path);
-                versions.push(SolanaVersion {
+                versions.push(SolanaInfo {
                     name,
-                    path,
+                    path: path.to_string_lossy().to_string(),
                     size,
                     is_active,
                     version,
@@ -119,11 +119,10 @@ impl Solana {
 
     /// 清理 Solana 版本
     pub fn clean_solana_versions() {
-        let versions = Self::get_solana_versions();
-        let inactive_versions: Vec<&SolanaVersion> =
-            versions.iter().filter(|v| !v.is_active).collect();
+        let list = Self::get_solana_versions();
+        let inactive_versions: Vec<&SolanaInfo> = list.iter().filter(|v| !v.is_active).collect();
         if inactive_versions.is_empty() {
-            println!("{}", "No inactive Solana versions to clean.".bold().green());
+            println!("No Solana versions found.");
             return;
         }
 
@@ -141,17 +140,17 @@ impl Solana {
             .unwrap();
 
         if selections.is_empty() {
-            println!("No versions selected.");
+            println!("No Solana versions selected.");
             return;
         }
 
         for &index in &selections {
-            let version = &inactive_versions[index];
-            println!("Removing {}...", version.name);
-            if fs::remove_dir_all(&version.path).is_ok() {
-                println!("{} removed.", version.name.green());
+            let select = &inactive_versions[index];
+            println!("Removing {}...", select.name);
+            if fs::remove_dir_all(&select.path).is_ok() {
+                println!("{} removed.", select.name.green());
             } else {
-                println!("Failed to remove {}.", version.name.red());
+                println!("Failed to remove {}.", select.name.red());
             }
         }
     }

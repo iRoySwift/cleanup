@@ -9,10 +9,10 @@ use crate::commands::Utils;
 pub struct Rust;
 
 #[derive(Debug)]
-struct RustVersion {
+pub struct RustInfo {
     name: String,
-    path: PathBuf,
-    size: u64,
+    path: String,
+    pub size: u64,
     is_active: bool,
     version: Option<String>,
 }
@@ -41,7 +41,7 @@ impl Rust {
         stdout.split_whitespace().next().map(|s| s.to_string())
     }
     /// 获取所有 Rust 工具链
-    fn get_rust_versions() -> Vec<RustVersion> {
+    pub fn get_rust_versions() -> Vec<RustInfo> {
         let home = std::env::var("HOME").unwrap();
         let rustup_path = Path::new(&home).join(".rustup/toolchains");
         if !rustup_path.exists() {
@@ -58,9 +58,9 @@ impl Rust {
                 let size = Utils::calculate_dir_size(&path);
                 let is_active = active_toolchain.as_ref().is_some_and(|v| name.contains(v));
                 let version = Self::get_rust_version_info(&path);
-                versions.push(RustVersion {
+                versions.push(RustInfo {
                     name,
-                    path,
+                    path: path.to_string_lossy().to_string(),
                     size,
                     is_active,
                     version,
@@ -114,16 +114,17 @@ impl Rust {
         println!("{}", "🦀 Rust clean:".bold().cyan());
         println!();
 
-        let versions = Self::get_rust_versions();
-        if versions.is_empty() {
+        let list = Self::get_rust_versions();
+        if list.is_empty() {
             println!("No Rust versions found.\n");
             return;
         }
 
+        println!("{}", "🧹 Cleaning Rust Versions:".bold().cyan());
+
         let selections = MultiSelect::with_theme(&ColorfulTheme::default())
             .items(
-                versions
-                    .iter()
+                list.iter()
                     .map(|v| format!("{} ({})", v.name, Utils::format_size(v.size)))
                     .collect::<Vec<String>>(),
             )
@@ -131,21 +132,24 @@ impl Rust {
             .unwrap();
 
         if selections.is_empty() {
-            println!("No versions selected.");
+            println!("No Rust versions selected.");
             return;
         }
 
         for &index in &selections {
+            let select = &list[index];
+
             let output = Command::new("rustup")
                 .arg("uninstall")
-                .arg(&versions[index].name)
+                .arg(&select.name)
                 .output();
 
+            println!("Removing {}...", select.name);
             match output {
                 Ok(output) if output.status.success() => {
-                    println!("✓ Removed {}", versions[index].name.green());
+                    println!("✓ Removed {}", select.name.green());
                 }
-                _ => println!("✗ Failed to remove {}", versions[index].name.red()),
+                _ => println!("✗ Failed to remove {}", select.name.red()),
             }
         }
     }
