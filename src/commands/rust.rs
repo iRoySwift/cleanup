@@ -11,7 +11,6 @@ pub struct Rust;
 #[derive(Debug)]
 pub struct RustInfo {
     name: String,
-    path: String,
     pub size: u64,
     is_active: bool,
     version: Option<String>,
@@ -32,6 +31,10 @@ impl Rust {
     }
     /// 获取当前激活的 Rust 工具链
     fn get_active_rust_version() -> Option<String> {
+        if !Utils::command_exists("rustup") {
+            eprintln!("rustup not found in PATH.");
+            return None;
+        }
         let output = std::process::Command::new("rustup")
             .args(["show", "active-toolchain"])
             .output()
@@ -41,6 +44,10 @@ impl Rust {
     }
     /// 获取所有 Rust 工具链
     pub fn get_rust_versions() -> Vec<RustInfo> {
+        if !Utils::command_exists("rustup") {
+            eprintln!("rustup command not available; skipping Rust toolchain inspection.");
+            return Vec::new();
+        }
         let home = match std::env::var("HOME") {
             Ok(path) => path,
             Err(err) => {
@@ -87,7 +94,6 @@ impl Rust {
             let version = Self::get_rust_version_info(&path);
             versions.push(RustInfo {
                 name,
-                path: path.to_string_lossy().to_string(),
                 size,
                 is_active,
                 version,
@@ -139,6 +145,11 @@ impl Rust {
     pub fn clean_rust_versions() {
         println!("{}", "🦀 Rust clean:".bold().cyan());
         println!();
+
+        if !Utils::command_exists("rustup") {
+            eprintln!("rustup command not available; cannot clean toolchains.");
+            return;
+        }
 
         let list = Self::get_rust_versions();
         if list.is_empty() {

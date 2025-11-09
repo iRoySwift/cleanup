@@ -33,7 +33,7 @@ struct DeviceEntry {
     #[serde(default, rename = "udid")]
     identifier: String,
     #[serde(default, rename = "dataPath")]
-    path: String,
+    _path: String,
     #[serde(default, rename = "isAvailable")]
     is_available: bool,
     #[serde(default, rename = "dataPathSize")]
@@ -44,7 +44,6 @@ struct DeviceEntry {
 pub struct SimulatorInfo {
     name: String,
     identifier: String,
-    path: String,
     version: Option<String>,
     pub size: u64,
     pub is_available: bool,
@@ -56,6 +55,10 @@ pub struct Simulator;
 impl Simulator {
     /// 获取所有 Simulator 设备
     fn get_simulator_devices() -> HashMap<String, Vec<DeviceEntry>> {
+        if !Utils::command_exists("xcrun") {
+            eprintln!("xcrun not found in PATH. Skipping simulator device discovery.");
+            return HashMap::new();
+        }
         let output = match Command::new("xcrun")
             .args(["simctl", "list", "devices", "-j"])
             .output()
@@ -78,6 +81,10 @@ impl Simulator {
 
     /// 获取所有 Simulator 运行时和设备信息
     fn get_simulator_runtimes() -> Vec<RuntimeEntry> {
+        if !Utils::command_exists("xcrun") {
+            eprintln!("xcrun not found in PATH. Skipping simulator runtime discovery.");
+            return Vec::new();
+        }
         let output = match Command::new("xcrun")
             .args(["simctl", "list", "runtimes", "-j"])
             .output()
@@ -108,7 +115,6 @@ impl Simulator {
             let simulator = SimulatorInfo {
                 name: runtime.name,
                 identifier: runtime.identifier.clone(),
-                path: runtime.path,
                 version: runtime.version,
                 size: runtime_size,
                 is_available: runtime.is_available,
@@ -124,7 +130,6 @@ impl Simulator {
                 let simulator = SimulatorInfo {
                     name: runtime_device.name,
                     identifier: runtime_device.identifier,
-                    path: runtime_device.path,
                     version: Some("".to_string()),
                     size: runtime_device.size,
                     is_available: runtime_device.is_available,

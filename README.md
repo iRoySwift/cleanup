@@ -77,13 +77,21 @@ src/
     utils.rs           # 公共工具函数
 ```
 
-## 🧪 测试建议
+## 🧪 测试
 
-当前项目以命令行为主，可通过以下方式验证功能：
+```bash
+# 运行所有单元测试
+cargo test
+
+# 只运行 utils 模块中的 format_size_scales_units 测试并输出原始日志
+cargo test -p cleanup format_size_scales_units -- --nocapture
+```
+
+功能验证建议：
 
 1. 在沙盒环境中运行 `cargo run -- status`，确认信息统计是否准确。
 2. 为 Rust/Solana 准备多个版本，执行 `--clean` 子命令验证筛选逻辑。
-3. 对 iOS 模拟器进行删除前，请确认目标设备确实可以移除。
+3. 在删除 iOS 模拟器前先确认目标设备确实可以移除。
 
 ## 🤝 贡献
 
