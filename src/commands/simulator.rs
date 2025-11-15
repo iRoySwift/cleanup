@@ -4,6 +4,7 @@ use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf, process::Command};
 
 use crate::commands::Utils;
+use rayon::prelude::*;
 
 #[derive(Deserialize)]
 struct RuntimeList {
@@ -108,40 +109,47 @@ impl Simulator {
     pub fn get_simulators() -> Vec<SimulatorInfo> {
         let runtimes = Self::get_simulator_runtimes();
         let devices = Self::get_simulator_devices();
-        let mut simulators: Vec<SimulatorInfo> = Vec::new();
 
-        for runtime in runtimes.into_iter() {
-            let runtime_size = Utils::calculate_dir_size(PathBuf::from(&runtime.path).as_path());
-            let simulator = SimulatorInfo {
-                name: runtime.name,
-                identifier: runtime.identifier.clone(),
-                version: runtime.version,
-                size: runtime_size,
-                is_available: runtime.is_available,
-                simulator_type: "runtime".to_string(),
-            };
-            simulators.push(simulator);
+        let group: Vec<Vec<SimulatorInfo>> = runtimes
+            .into_par_iter()
+            .map(|runtime| {
+                let mut simulators: Vec<SimulatorInfo> = Vec::new();
 
-            let runtime_devices: Vec<DeviceEntry> = devices
-                .get(&runtime.identifier)
-                .cloned()
-                .unwrap_or_default();
-            for runtime_device in runtime_devices.into_iter() {
+                let runtime_size =
+                    Utils::calculate_dir_size(PathBuf::from(&runtime.path).as_path());
                 let simulator = SimulatorInfo {
-                    name: runtime_device.name,
-                    identifier: runtime_device.identifier,
-                    version: Some("".to_string()),
-                    size: runtime_device.size,
-                    is_available: runtime_device.is_available,
-                    simulator_type: "device".to_string(),
+                    name: runtime.name,
+                    identifier: runtime.identifier.clone(),
+                    version: runtime.version,
+                    size: runtime_size,
+                    is_available: runtime.is_available,
+                    simulator_type: "runtime".to_string(),
                 };
                 simulators.push(simulator);
-            }
-        }
-        simulators
+
+                let runtime_devices: Vec<DeviceEntry> = devices
+                    .get(&runtime.identifier)
+                    .cloned()
+                    .unwrap_or_default();
+                for runtime_device in runtime_devices.into_iter() {
+                    let simulator = SimulatorInfo {
+                        name: runtime_device.name,
+                        identifier: runtime_device.identifier,
+                        version: Some("".to_string()),
+                        size: runtime_device.size,
+                        is_available: runtime_device.is_available,
+                        simulator_type: "device".to_string(),
+                    };
+                    simulators.push(simulator);
+                }
+                simulators
+            })
+            .collect();
+
+        group.into_iter().flatten().collect()
     }
 
-    pub fn list_simulators() {
+    pub fn show_simulator_versions() {
         println!("{}", "📱 iOS Simulators:".bold().cyan());
         println!();
         let simulators = Self::get_simulators();

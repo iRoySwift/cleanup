@@ -1,5 +1,6 @@
 use colored::Colorize;
 use dialoguer::{MultiSelect, theme::ColorfulTheme};
+use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
     process::Command,
@@ -43,7 +44,7 @@ impl Rust {
         stdout.split_whitespace().next().map(|s| s.to_string())
     }
     /// 获取所有 Rust 工具链
-    pub fn get_rust_versions() -> Vec<RustInfo> {
+    pub fn get_rusts() -> Vec<RustInfo> {
         if !Utils::command_exists("rustup") {
             eprintln!("rustup command not available; skipping Rust toolchain inspection.");
             return Vec::new();
@@ -61,7 +62,7 @@ impl Rust {
         }
 
         let active_toolchain = Self::get_active_rust_version();
-        let mut versions = Vec::new();
+
         let entries = match std::fs::read_dir(&rustup_path) {
             Ok(entries) => entries,
             Err(err) => {
@@ -70,44 +71,35 @@ impl Rust {
             }
         };
 
-        for entry in entries {
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(err) => {
-                    eprintln!("Failed to read toolchain entry: {}", err);
-                    continue;
-                }
-            };
-            let path = entry.path();
-            if !path.exists() {
-                continue;
-            }
-            let Some(name) = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.to_string())
-            else {
-                continue;
-            };
-            let size = Utils::calculate_dir_size(&path);
-            let is_active = active_toolchain.as_ref().is_some_and(|v| name.contains(v));
-            let version = Self::get_rust_version_info(&path);
-            versions.push(RustInfo {
-                name,
-                size,
-                is_active,
-                version,
-            });
-        }
-        versions
+        let paths: Vec<std::path::PathBuf> = entries
+            .filter_map(|entry| entry.ok())
+            .map(|e| e.path())
+            .filter(|p| p.exists())
+            .collect();
+
+        paths
+            .into_par_iter()
+            .filter_map(|path| {
+                let name = path.as_os_str().to_str()?.to_string();
+                let size = Utils::calculate_dir_size(&path);
+                let is_active = active_toolchain.as_ref().is_some_and(|v| name.contains(v));
+                let version = Self::get_rust_version_info(&path);
+                Some(RustInfo {
+                    name,
+                    size,
+                    is_active,
+                    version,
+                })
+            })
+            .collect()
     }
 
     /// 列出所有 Rust 工具链
-    pub fn list_rust_versions() {
+    pub fn show_rust_versions() {
         println!("{}", "🦀 Rust versions:".bold().cyan());
         println!();
 
-        let versions = Self::get_rust_versions();
+        let versions = Self::get_rusts();
         if versions.is_empty() {
             println!("No Rust versions found.\n");
             return;
@@ -149,7 +141,7 @@ impl Rust {
             return;
         }
 
-        let list = Self::get_rust_versions();
+        let list = Self::get_rusts();
         if list.is_empty() {
             println!("No Rust versions found.\n");
             return;

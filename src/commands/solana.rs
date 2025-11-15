@@ -1,12 +1,12 @@
+use crate::commands::Utils;
 use colored::Colorize;
 use dialoguer::{MultiSelect, theme::ColorfulTheme};
+use rayon::prelude::*;
 use std::{
     fs,
     path::{Path, PathBuf},
     process::Command,
 };
-
-use crate::commands::Utils;
 pub struct Solana;
 
 #[derive(Debug)]
@@ -29,65 +29,6 @@ impl Solana {
         String::from_utf8(output.stdout)
             .ok()
             .and_then(|s| s.split_whitespace().nth(1).map(|v| v.to_string()))
-    }
-
-    /// 获取所有 Solana 版本
-    pub fn get_solana_versions() -> Vec<SolanaInfo> {
-        let home = match std::env::var("HOME") {
-            Ok(path) => PathBuf::from(path),
-            Err(err) => {
-                eprintln!("HOME environment variable is not set: {}", err);
-                return Vec::new();
-            }
-        };
-        let solana_dir = home.join(".local/share/solana/install/releases");
-
-        if !solana_dir.exists() {
-            return Vec::new();
-        }
-        let mut versions = Vec::new();
-        let active_version = Self::get_active_solana_version();
-
-        let entries = match std::fs::read_dir(&solana_dir) {
-            Ok(entries) => entries,
-            Err(err) => {
-                eprintln!("Failed to read Solana releases directory: {}", err);
-                return Vec::new();
-            }
-        };
-
-        for entry in entries {
-            let entry = match entry {
-                Ok(entry) => entry,
-                Err(err) => {
-                    eprintln!("Failed to read Solana entry: {}", err);
-                    continue;
-                }
-            };
-            let path = entry.path();
-            if !path.exists() {
-                continue;
-            }
-            let Some(name) = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.to_string())
-            else {
-                continue;
-            };
-            let size = Utils::calculate_dir_size(&path);
-            let is_active = active_version.as_ref().is_some_and(|v| name.contains(v));
-            let version = Self::get_solana_version_info(&path);
-            versions.push(SolanaInfo {
-                name,
-                path: path.to_string_lossy().to_string(),
-                size,
-                is_active,
-                version,
-            });
-        }
-
-        versions
     }
 
     /// 获取当前激活的 Solana 版本
@@ -114,11 +55,60 @@ impl Solana {
         }
     }
 
+    /// 获取所有 Solana 版本
+    pub fn get_solanas() -> Vec<SolanaInfo> {
+        let home = match std::env::var("HOME") {
+            Ok(path) => PathBuf::from(path),
+            Err(err) => {
+                eprintln!("HOME environment variable is not set: {}", err);
+                return Vec::new();
+            }
+        };
+        let solana_dir = home.join(".local/share/solana/install/releases");
+
+        if !solana_dir.exists() {
+            return Vec::new();
+        }
+        let active_version = Self::get_active_solana_version();
+
+        let entries = match std::fs::read_dir(&solana_dir) {
+            Ok(entries) => entries,
+            Err(err) => {
+                eprintln!("Failed to read Solana releases directory: {}", err);
+                return Vec::new();
+            }
+        };
+
+        let paths: Vec<PathBuf> = entries
+            .into_iter()
+            .filter_map(|entry| entry.ok())
+            .map(|e| e.path())
+            .collect();
+
+        paths
+            .into_par_iter()
+            .filter(|path| path.exists())
+            .filter_map(|path| {
+                let name = path.file_name()?.to_str()?.to_string();
+                let size = Utils::calculate_dir_size(&path);
+                let is_active = active_version.as_ref().is_some_and(|v| name.contains(v));
+                let version = Self::get_solana_version_info(&path);
+                Some(SolanaInfo {
+                    name,
+                    path: path.to_string_lossy().to_string(),
+                    size,
+                    is_active,
+                    version,
+                })
+            })
+            .collect()
+    }
+
     /// 列出 Solana 版本
-    pub fn list_solana_versions() {
+    pub fn show_solana_versions() {
         println!("{}", "⚡ Solana Versions:".bold().cyan());
         println!();
-        let versions = Self::get_solana_versions();
+        let versions = Self::get_solanas();
         if versions.is_empty() {
             println!("No Solana versions found.");
             return;
@@ -154,7 +144,7 @@ impl Solana {
 
     /// 清理 Solana 版本
     pub fn clean_solana_versions() {
-        let list = Self::get_solana_versions();
+        let list = Self::get_solanas();
         let inactive_versions: Vec<&SolanaInfo> = list.iter().filter(|v| !v.is_active).collect();
         if inactive_versions.is_empty() {
             println!("No Solana versions found.");

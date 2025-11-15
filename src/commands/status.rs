@@ -8,8 +8,8 @@ impl Status {
         println!("{}", "📊 Storage Usage Summary:".bold().cyan());
         println!();
 
-        let rusts = Rust::get_rust_versions();
-        let solanas = Solana::get_solana_versions();
+        let rusts = Rust::get_rusts();
+        let solanas = Solana::get_solanas();
         let simulators = Simulator::get_simulators();
 
         let rust_total: u64 = rusts.iter().map(|r| r.size).sum();

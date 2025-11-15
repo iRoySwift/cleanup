@@ -51,7 +51,7 @@ fn main() {
         }
         Commands::Solana { list, clean } => {
             if list {
-                Solana::list_solana_versions();
+                Solana::show_solana_versions();
             }
             if clean {
                 Solana::clean_solana_versions();
@@ -59,7 +59,7 @@ fn main() {
         }
         Commands::Rust { list, clean } => {
             if list {
-                Rust::list_rust_versions();
+                Rust::show_rust_versions();
             }
             if clean {
                 Rust::clean_rust_versions();
@@ -67,7 +67,7 @@ fn main() {
         }
         Commands::Simulator { list, clean } => {
             if list {
-                Simulator::list_simulators();
+                Simulator::show_simulator_versions();
             }
             if clean {
                 Simulator::clean_simulators();
